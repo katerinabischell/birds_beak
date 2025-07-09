@@ -1,0 +1,482 @@
+---
+title: "Bird's Beak Plant Bombus Bee Observation Analysis"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Data Loading and Preparation
+
+```{r libraries}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(kableExtra)
+library(viridis)
+library(gridExtra)
+```
+
+```{r data_loading}
+df <- read.csv("Collection Observations - Birds Beak-2.csv", stringsAsFactors = FALSE)
+
+# Display the structure of the data
+str(df)
+head(df)
+```
+
+# Data Cleaning and Processing
+
+```{r data_cleaning}
+# Clean and process the data
+df_clean <- df %>%
+  # Remove empty rows
+  filter(!is.na(Date) & Date != "") %>%
+  
+  # Convert date and time columns
+  mutate(
+    Date = mdy(Date),
+    Start.Time = hms(Start.Time),
+    End.Time = hms(End.Time),
+    
+    # Extract numeric values from wind speed
+    Wind = as.numeric(Wind),
+    
+    # Clean temperature (assuming it's in Fahrenheit)
+    Temperature = as.numeric(Weather),
+    
+    # Create a datetime column for start time
+    DateTime = ymd_hms(paste(Date, Start.Time)),
+    
+    # Extract bee counts from Activity columns
+    Bombus_on_site = case_when(
+      str_detect(tolower(Activity.on.site), "bombus") ~ str_extract_all(Activity.on.site, "\\d+") %>% 
+        map_chr(~ifelse(length(.x) > 0, .x[1], "1")),
+      str_detect(tolower(Activity.on.site), "none|na") ~ "0",
+      TRUE ~ "0"
+    ),
+    
+    Bombus_around = case_when(
+      str_detect(tolower(Activity.around), "bombus") ~ str_extract_all(Activity.around, "\\d+") %>% 
+        map_chr(~ifelse(length(.x) > 0, .x[1], "1")),
+      str_detect(tolower(Activity.around), "none|na") ~ "0",
+      TRUE ~ "0"
+    ),
+    
+    # Convert to numeric
+    Bombus_on_site = as.numeric(Bombus_on_site),
+    Bombus_around = as.numeric(Bombus_around),
+    
+    # Total bombus count
+    Total_Bombus = Bombus_on_site + Bombus_around,
+    
+    # Create week number
+    Week_num = as.numeric(str_extract(Week, "\\d+")),
+    
+    # Convert video duration to minutes
+    Video_Duration_min = case_when(
+      str_detect(Video.Duration, "min") ~ as.numeric(str_extract(Video.Duration, "\\d+\\.?\\d*")),
+      TRUE ~ 30  # Default to 30 minutes
+    )
+  ) %>%
+  
+  # Filter out rows with missing essential data
+  filter(!is.na(Date), !is.na(Site..))
+
+# Display cleaned data summary
+summary(df_clean)
+```
+
+# Exploratory Data Analysis
+
+## Data Overview
+
+```{r data_overview}
+# Basic statistics table
+overview_stats <- df_clean %>%
+  summarise(
+    Total_Observations = n(),
+    Unique_Sites = n_distinct(Site..),
+    Date_Range = paste(min(Date, na.rm = TRUE), "to", max(Date, na.rm = TRUE)),
+    Total_Bombus_Observed = sum(Total_Bombus, na.rm = TRUE),
+    Avg_Bombus_per_Session = round(mean(Total_Bombus, na.rm = TRUE), 2),
+    Sessions_with_Bombus = sum(Total_Bombus > 0, na.rm = TRUE),
+    Percent_Sessions_with_Bombus = round((sum(Total_Bombus > 0, na.rm = TRUE) / n()) * 100, 1)
+  )
+
+kable(overview_stats, caption = "Dataset Overview") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Bombus Activity Over Time
+
+```{r bombus_time_series}
+# Daily bombus activity
+daily_activity <- df_clean %>%
+  group_by(Date) %>%
+  summarise(
+    Total_Bombus = sum(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    Avg_Bombus = round(Total_Bombus / Sessions, 2),
+    .groups = 'drop'
+  )
+
+# Time series plot
+p1 <- ggplot(daily_activity, aes(x = Date, y = Total_Bombus)) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(color = "darkblue", size = 2) +
+  labs(title = "Daily Bombus Activity",
+       x = "Date",
+       y = "Total Bombus Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Average bombus per session
+p2 <- ggplot(daily_activity, aes(x = Date, y = Avg_Bombus)) +
+  geom_line(color = "orange", size = 1) +
+  geom_point(color = "darkorange", size = 2) +
+  labs(title = "Average Bombus per Session",
+       x = "Date",
+       y = "Average Bombus Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+grid.arrange(p1, p2, ncol = 1)
+```
+
+## Bombus Activity by Site
+
+```{r bombus_by_site}
+# Bombus activity by site
+site_activity <- df_clean %>%
+  group_by(Site..) %>%
+  summarise(
+    Total_Bombus = sum(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    Avg_Bombus = round(Total_Bombus / Sessions, 2),
+    Sessions_with_Bombus = sum(Total_Bombus > 0, na.rm = TRUE),
+    Percent_with_Bombus = round((Sessions_with_Bombus / Sessions) * 100, 1),
+    .groups = 'drop'
+  )
+
+# Bar plot of total bombus by site
+p3 <- ggplot(site_activity, aes(x = factor(Site..), y = Total_Bombus, fill = factor(Site..))) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  scale_fill_viridis_d() +
+  labs(title = "Total Bombus Count by Site",
+       x = "Site Number",
+       y = "Total Bombus Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Percentage of sessions with bombus by site
+p4 <- ggplot(site_activity, aes(x = factor(Site..), y = Percent_with_Bombus, fill = factor(Site..))) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  scale_fill_viridis_d() +
+  labs(title = "Percentage of Sessions with Bombus by Site",
+       x = "Site Number",
+       y = "Percentage of Sessions") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+grid.arrange(p3, p4, ncol = 1)
+
+# Display site statistics table
+kable(site_activity, caption = "Bombus Activity by Site") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Environmental Factors and Bombus Activity
+
+```{r environmental_analysis}
+# Temperature vs Bombus activity
+temp_analysis <- df_clean %>%
+  filter(!is.na(Temperature)) %>%
+  group_by(Temperature) %>%
+  summarise(
+    Avg_Bombus = mean(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    .groups = 'drop'
+  )
+
+p5 <- ggplot(df_clean, aes(x = Temperature, y = Total_Bombus)) +
+  geom_point(alpha = 0.6, color = "darkgreen") +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  labs(title = "Temperature vs Bombus Activity",
+       x = "Temperature (°F)",
+       y = "Total Bombus Count") +
+  theme_minimal()
+
+# Wind speed vs Bombus activity
+p6 <- ggplot(df_clean, aes(x = Wind, y = Total_Bombus)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  labs(title = "Wind Speed vs Bombus Activity",
+       x = "Wind Speed",
+       y = "Total Bombus Count") +
+  theme_minimal()
+
+grid.arrange(p5, p6, ncol = 1)
+```
+
+## Time of Day Analysis
+
+```{r time_of_day}
+# Convert start time to hours for analysis
+df_clean <- df_clean %>%
+  mutate(
+    Start_Hour = hour(Start.Time),
+    Time_Period = case_when(
+      Start_Hour < 12 ~ "Morning",
+      Start_Hour < 15 ~ "Midday",
+      TRUE ~ "Afternoon"
+    )
+  )
+
+# Bombus activity by time period
+time_activity <- df_clean %>%
+  group_by(Time_Period) %>%
+  summarise(
+    Total_Bombus = sum(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    Avg_Bombus = round(Total_Bombus / Sessions, 2),
+    .groups = 'drop'
+  )
+
+p7 <- ggplot(time_activity, aes(x = Time_Period, y = Avg_Bombus, fill = Time_Period)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  scale_fill_viridis_d() +
+  labs(title = "Average Bombus Activity by Time Period",
+       x = "Time Period",
+       y = "Average Bombus Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Hour-by-hour activity
+hourly_activity <- df_clean %>%
+  group_by(Start_Hour) %>%
+  summarise(
+    Total_Bombus = sum(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    Avg_Bombus = round(Total_Bombus / Sessions, 2),
+    .groups = 'drop'
+  )
+
+p8 <- ggplot(hourly_activity, aes(x = Start_Hour, y = Avg_Bombus)) +
+  geom_line(color = "purple", size = 1) +
+  geom_point(color = "blue", size = 2) +
+  labs(title = "Bombus Activity Throughout the Day",
+       x = "Hour of Day",
+       y = "Average Bombus Count") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(9, 18, 1))
+
+grid.arrange(p7, p8, ncol = 1)
+```
+
+## Weather Conditions Analysis
+
+```{r weather_analysis}
+# Clean weather conditions
+df_clean <- df_clean %>%
+  mutate(
+    Weather_Clean = case_when(
+      str_detect(tolower(Conditions), "sunny") ~ "Sunny",
+      str_detect(tolower(Conditions), "overcast") ~ "Overcast",
+      str_detect(tolower(Conditions), "cloudy") ~ "Cloudy",
+      TRUE ~ "Other"
+    )
+  )
+
+# Bombus activity by weather condition
+weather_activity <- df_clean %>%
+  group_by(Weather_Clean) %>%
+  summarise(
+    Total_Bombus = sum(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    Avg_Bombus = round(Total_Bombus / Sessions, 2),
+    Sessions_with_Bombus = sum(Total_Bombus > 0, na.rm = TRUE),
+    Percent_with_Bombus = round((Sessions_with_Bombus / Sessions) * 100, 1),
+    .groups = 'drop'
+  )
+
+p9 <- ggplot(weather_activity, aes(x = Weather_Clean, y = Avg_Bombus, fill = Weather_Clean)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  scale_fill_viridis_d() +
+  labs(title = "Average Bombus Activity by Weather Condition",
+       x = "Weather Condition",
+       y = "Average Bombus Count") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+print(p9)
+
+# Display weather statistics table
+kable(weather_activity, caption = "Bombus Activity by Weather Condition") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+# Weekly Progress Analysis
+
+```{r weekly_analysis}
+# Weekly bombus activity
+weekly_activity <- df_clean %>%
+  group_by(Week_num) %>%
+  summarise(
+    Total_Bombus = sum(Total_Bombus, na.rm = TRUE),
+    Sessions = n(),
+    Avg_Bombus = round(Total_Bombus / Sessions, 2),
+    Sessions_with_Bombus = sum(Total_Bombus > 0, na.rm = TRUE),
+    Percent_with_Bombus = round((Sessions_with_Bombus / Sessions) * 100, 1),
+    .groups = 'drop'
+  )
+
+p10 <- ggplot(weekly_activity, aes(x = Week_num, y = Total_Bombus)) +
+  geom_line(color = "darkgreen", size = 1) +
+  geom_point(color = "darkgreen", size = 3) +
+  labs(title = "Weekly Bombus Activity Trend",
+       x = "Week Number",
+       y = "Total Bombus Count") +
+  theme_minimal() +
+  scale_x_continuous(breaks = unique(weekly_activity$Week_num))
+
+print(p10)
+
+# Display weekly statistics table
+kable(weekly_activity, caption = "Weekly Bombus Activity Summary") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+# Data Quality Assessment
+
+```{r data_quality}
+# Check for missing data and technical issues
+quality_check <- df_clean %>%
+  mutate(
+    Has_Technical_Issue = str_detect(tolower(Notes), "died|overheated|memory|card|froze"),
+    Full_Duration = Video_Duration_min >= 29  # Sessions that recorded close to full 30 minutes
+  ) %>%
+  summarise(
+    Total_Sessions = n(),
+    Sessions_with_Issues = sum(Has_Technical_Issue, na.rm = TRUE),
+    Percent_with_Issues = round((Sessions_with_Issues / Total_Sessions) * 100, 1),
+    Full_Duration_Sessions = sum(Full_Duration, na.rm = TRUE),
+    Percent_Full_Duration = round((Full_Duration_Sessions / Total_Sessions) * 100, 1),
+    Missing_Bombus_Data = sum(is.na(Total_Bombus)),
+    .groups = 'drop'
+  )
+
+kable(quality_check, caption = "Data Quality Assessment") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+# Technical issues by date
+technical_issues <- df_clean %>%
+  mutate(Has_Technical_Issue = str_detect(tolower(Notes), "died|overheated|memory|card|froze")) %>%
+  group_by(Date) %>%
+  summarise(
+    Total_Sessions = n(),
+    Sessions_with_Issues = sum(Has_Technical_Issue, na.rm = TRUE),
+    Percent_with_Issues = round((Sessions_with_Issues / Total_Sessions) * 100, 1),
+    .groups = 'drop'
+  ) %>%
+  filter(Sessions_with_Issues > 0)
+
+if(nrow(technical_issues) > 0) {
+  kable(technical_issues, caption = "Technical Issues by Date") %>%
+    kable_styling(bootstrap_options = c("striped", "hover"))
+}
+```
+
+# Interactive Data Exploration
+
+```{r interactive_plots}
+# Create interactive plot for bombus activity over time
+interactive_plot <- df_clean %>%
+  plot_ly(x = ~DateTime, y = ~Total_Bombus, 
+          color = ~factor(Site..), 
+          size = ~Video_Duration_min,
+          text = ~paste("Site:", Site.., "<br>",
+                       "Date:", Date, "<br>",
+                       "Time:", Start.Time, "<br>",
+                       "Bombus Count:", Total_Bombus, "<br>",
+                       "Weather:", Weather_Clean, "<br>",
+                       "Temperature:", Temperature, "°F", "<br>",
+                       "Wind Speed:", Wind),
+          hovertemplate = "%{text}<extra></extra>") %>%
+  add_markers() %>%
+  layout(title = "Interactive Bombus Activity Timeline",
+         xaxis = list(title = "Date and Time"),
+         yaxis = list(title = "Total Bombus Count"),
+         showlegend = TRUE)
+
+interactive_plot
+```
+
+# Summary and Recommendations
+
+## Key Findings
+
+```{r summary_findings}
+# Calculate key metrics for summary
+summary_metrics <- df_clean %>%
+  summarise(
+    Peak_Activity_Date = Date[which.max(Total_Bombus)],
+    Peak_Activity_Count = max(Total_Bombus, na.rm = TRUE),
+    Most_Active_Site = Site..[which.max(Total_Bombus)],
+    Best_Weather = weather_activity$Weather_Clean[which.max(weather_activity$Avg_Bombus)],
+    Optimal_Temperature = round(mean(df_clean$Temperature[df_clean$Total_Bombus > 0], na.rm = TRUE), 1),
+    Best_Time_Period = time_activity$Time_Period[which.max(time_activity$Avg_Bombus)],
+    .groups = 'drop'
+  )
+
+cat("## Key Findings:\n\n")
+cat("- **Peak Activity Date:** ", as.character(summary_metrics$Peak_Activity_Date), 
+    " (", summary_metrics$Peak_Activity_Count, " bombus observed)\n")
+cat("- **Most Active Site:** Site ", summary_metrics$Most_Active_Site, "\n")
+cat("- **Best Weather Conditions:** ", summary_metrics$Best_Weather, "\n")
+cat("- **Optimal Temperature:** ", summary_metrics$Optimal_Temperature, "°F\n")
+cat("- **Best Time Period:** ", summary_metrics$Best_Time_Period, "\n")
+cat("- **Overall Success Rate:** ", overview_stats$Percent_Sessions_with_Bombus, "% of sessions had bombus activity\n")
+```
+
+## Recommendations for Future Data Collection
+
+Based on the analysis, here are recommendations for your future data collection and AI model training:
+
+1. **Optimal Collection Conditions:**
+   - Focus on sunny weather conditions when possible
+   - Target the most productive time periods identified in the analysis
+   - Consider environmental factors like temperature and wind speed
+
+2. **Site Strategy:**
+   - Prioritize sites with higher bombus activity rates
+   - Consider expanding monitoring at successful sites
+
+3. **Technical Improvements:**
+   - Address camera reliability issues (overheating, memory cards)
+   - Ensure consistent 30-minute recording sessions
+   - Consider backup equipment for high-activity periods
+
+4. **Data for AI Training:**
+   - Current dataset provides good baseline for training data
+   - Include environmental metadata with video annotations
+   - Consider balancing dataset with negative examples (no bombus activity)
+
+5. **Future Analysis:**
+   - Track seasonal patterns as data accumulates
+   - Correlate with plant phenology data if available
+   - Consider pollen load analysis for bombus specimens
+
+---
+
+*Analysis completed on `r Sys.Date()`*
