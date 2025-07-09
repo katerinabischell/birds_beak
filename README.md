@@ -103,15 +103,14 @@ KB_summer25_NCOS/
 - **Primary Contact**: Dr. Chris Evelyn – Camera logistics and data pipeline
 - **Lab Oversight**: Dr. Katja Seltmann
 - **Field Support**: Wayne Chapman & Claire Wilhelm-Safian
-- **Meetings**: Weekly/biweekly lab group meetings for progress updates and troubleshooting
 
 ## Contributing
 
-This project is part of ongoing research at [Institution Name]. For questions about data collection protocols or analysis methods, please contact the project team.
+This project is part of ongoing research at University of California, Santa Barbara. For questions about data collection protocols or analysis methods, please contact the project team.
 
 ## License
 
-[Add appropriate license information]
+
 
 ---
 
