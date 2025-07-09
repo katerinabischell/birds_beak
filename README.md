@@ -1,26 +1,39 @@
-Bee Pollinator Monitoring for Coastal Endangered Plants
+# Bee Pollinator Monitoring for Coastal Endangered Plants
 
-Overview
+## Overview
 
 This project develops a machine learning (ML) model to detect pollinator activity for two endangered coastal plant species:
 
-Salt Marsh Bird’s Beak (Chloropyron maritimum)
-Ventura Marsh Milkvetch (Astragalus pycnostachyus var. lanosissimus)
-Traditional pollinator monitoring is labor-intensive and limited by short bloom windows. This project uses a combination of camera trap footage, synthetic image generation, and deep learning to support scalable, non-invasive ecological monitoring and inform conservation strategies.
+- **Salt Marsh Bird's Beak** (*Chloropyron maritimum*)
+- **Ventura Marsh Milkvetch** (*Astragalus pycnostachyus* var. *lanosissimus*)
 
-Goals
+Traditional pollinator monitoring is labor-intensive and limited by short bloom windows. This project uses a combination of camera trap footage, and deep learning to support scalable, non-invasive ecological monitoring and inform conservation strategies.
 
-Detect pollinator visits to target plants using image-based ML classification
-Use synthetic and real image datasets to train and validate the model
-Contribute to conservation by identifying pollinator species and visitation frequency
-Data Collection Protocol
+## Project Goals
 
-Data are collected at four sites within the North Campus Open Space (NCOS). Each site is monitored via camera traps:
+- **Automated Detection**: Develop image-based ML classification to detect pollinator visits to target plants
+- **Conservation Impact**: Identify pollinator species and quantify visitation frequency to inform conservation strategies
+- **Scalable Monitoring**: Create a replicable framework for endangered plant pollinator monitoring
 
-Shift structure: 3 times/day, 3 days/week, with both high- and low-res cameras
-Perimeter marking: Yarn quadrants (orange at Sites 1 & 2, yellow at Sites 3 & 4)
-Metadata logged: Site, date, time, weather, wind, pollinator activity, camera ID
-Storage structure:
+## Data Collection Protocol
+
+### Study Sites
+Data are collected at four sites within the North Campus Open Space (NCOS), each monitored via camera traps:
+
+- **Monitoring Schedule**: 3 times/day, 3 days/week
+- **Camera Setup**: Both high- and low-resolution cameras per site
+- **Site Marking**: Yarn quadrants for spatial reference (orange at Sites 1 & 2, yellow at Sites 3 & 4)
+
+### Metadata Collection
+Each observation session logs:
+- Site location and camera ID
+- Date, time, and shift type (morning/midday/afternoon)
+- Weather conditions (temperature, wind speed, cloud cover)
+- Pollinator activity (species, count, behavior)
+- Video duration and technical notes
+
+### Data Storage Structure
+```
 KB_summer25_NCOS/
   └── Salt Marsh Birds Beak/
       └── Week_1/
@@ -28,33 +41,78 @@ KB_summer25_NCOS/
               └── Site_1/
                   └── morning/
                       └── camera_type/
-Machine Learning Pipeline
+```
 
-Training data: Synthetic images made by overlaying pinned bee cutouts onto vegetation backgrounds
-Model: CNN-based architecture using PyTorch
-Inputs: Image data (from field and synthetic), metadata
-Performance goal: Improve beyond current 80% accuracy on synthetic datasets by incorporating real imagery
-Species Background
+## Machine Learning Pipeline
 
-Chloropyron maritimum (Salt Marsh Bird's Beak)
-Hemiparasitic, salt-tolerant annual herb
-Blooms May–October
-Primary pollinators: native bees (Melissodes, Lasioglossum, Bombus)
-Threats: invasive species, low visitation rates, habitat loss
-Astragalus pycnostachyus var. lanosissimus (Ventura Marsh Milkvetch)
-Perennial herb rediscovered in 1997
-Blooms June–October
-Relies on mechanical pollination by large bees (Bombus, Xylocopa)
-Threats: habitat degradation, pollination failure, climate change
-Files
+### Training Data
+- **Synthetic Images**: Created by overlaying pinned bee specimens onto vegetation backgrounds
+- **Real Field Data**: Camera trap footage with manual annotations
+- **Metadata Integration**: Environmental conditions and temporal data
 
-preliminary_research_7:9.Rmd: Exploratory analysis of Chloropyron maritimum pollination dynamics
-Collection Observations - Birds Beak-2.csv: Field observation log
-preliminary_research_7-9.html: Rendered HTML output of research analysis
-.gitignore: Git exclusions
-birds_beak.Rproj: RStudio project file
-Team & Contact
+### Model Architecture
+- **Framework**: CNN-based architecture using PyTorch
+- **Input Features**: Image data (field + synthetic) and environmental metadata
+- **Current Performance**: 80% accuracy on synthetic datasets
+- **Target**: Improve accuracy by incorporating real imagery and environmental factors
 
-Primary contact: Dr. Chris Evelyn – Camera logistics and data pipeline
-Advisors: Dr. Katja Seltmann (lab oversight), Wayne Chapman & Claire Wilhelm-Safian (field support)
-Lab group meetings: Weekly or biweekly to discuss progress and troubleshoot
+## Target Species
+
+### *Chloropyron maritimum* (Salt Marsh Bird's Beak)
+- **Type**: Hemiparasitic, salt-tolerant annual herb
+- **Bloom Period**: May–October
+- **Primary Pollinators**: Native bees (*Melissodes*, *Lasioglossum*, *Bombus*)
+- **Conservation Threats**: Invasive species, low visitation rates, habitat loss
+
+### *Astragalus pycnostachyus* var. *lanosissimus* (Ventura Marsh Milkvetch)
+- **Type**: Perennial herb (rediscovered in 1997)
+- **Bloom Period**: June–October
+- **Primary Pollinators**: Large bees requiring mechanical pollination (*Bombus*, *Xylocopa*)
+- **Conservation Threats**: Habitat degradation, pollination failure, climate change
+
+## Repository Structure
+
+```
+├── preliminary_research_7:9.Rmd          # Exploratory analysis of pollination dynamics
+├── Collection Observations - Birds Beak-2.csv  # Field observation log
+├── preliminary_research_7-9.html         # Rendered HTML analysis output
+├── .gitignore                            # Git exclusions
+├── birds_beak.Rproj                      # RStudio project file
+└── README.md                             # Project documentation
+```
+
+## Getting Started
+
+### Prerequisites
+- R (≥ 4.0.0) with packages: `tidyverse`, `lubridate`, `plotly`, `DT`, `kableExtra`
+- Python (≥ 3.8) with PyTorch for ML model development
+
+### Data Analysis
+1. Open `birds_beak.Rproj` in RStudio
+2. Run `preliminary_research_7:9.Rmd` to reproduce exploratory analysis
+3. View results in `preliminary_research_7-9.html`
+
+## Current Status
+
+- **Data Collection**: Active monitoring at 4 sites with systematic observation protocol
+- **Preliminary Analysis**: Completed exploratory analysis of *Bombus* activity patterns
+- **Model Development**: In progress - synthetic dataset created in the past, working toward real data integration
+
+## Team & Contact
+
+- **Primary Contact**: Dr. Chris Evelyn – Camera logistics and data pipeline
+- **Lab Oversight**: Dr. Katja Seltmann
+- **Field Support**: Wayne Chapman & Claire Wilhelm-Safian
+- **Meetings**: Weekly/biweekly lab group meetings for progress updates and troubleshooting
+
+## Contributing
+
+This project is part of ongoing research at [Institution Name]. For questions about data collection protocols or analysis methods, please contact the project team.
+
+## License
+
+[Add appropriate license information]
+
+---
+
+*Last updated: [07/09/25]*
